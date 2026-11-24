@@ -1,4 +1,4 @@
-name: Build Geode Mod
+name: SSXIs Build Geode Mod
 
 on:
   push:
@@ -13,5 +13,5 @@ jobs:
       - name: Setup Geode
         uses: geode-sdk/build-geode-mod@main
         with:
-          geode: v5.11.2
-          platform: win
+          sdk: v5.11.2
+          target: Win64
