@@ -1,0 +1,29 @@
+{
+    "geode": "5.11.2",
+    "gd": {
+        "win": "2.208"
+    },
+    "id": "user.prompt_builder",
+    "name": "Prompt Level Builder",
+    "version": "v1.0.0",
+    "developer": "You",
+    "description": "Генерирует объекты в редакторе по текстовому промпту",
+    "settings": {
+        "api-key": {
+            "type": "string",
+            "name": "API Key",
+            "description": "Вставь свой API-ключ (OpenAI / OpenRouter)",
+            "default": ""
+        },
+        "api-url": {
+            "type": "string",
+            "name": "API Endpoint URL",
+            "default": "https://openai.com"
+        },
+        "model": {
+            "type": "string",
+            "name": "Модель ИИ",
+            "default": "gpt-4o-mini"
+        }
+    }
+}
