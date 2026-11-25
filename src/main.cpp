@@ -1,18 +1,19 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/LevelEditorLayer.hpp>
 #include <Geode/modify/EditorUI.hpp>
 #include <Geode/utils/web.hpp>
 #include <matjson.hpp>
 
 using namespace geode::prelude;
 
-class PromptPopup : public geode::Popup<> {
+class PromptPopup : public geode::Popup {
 protected:
     TextInput* m_input = nullptr;
     CCMenuItemSpriteExtra* m_genBtn = nullptr;
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<web::WebResponse> m_listener;
 
-    bool setup() override {
+    bool init() {
+        if (!Popup::init(360.f, 180.f)) return false;
+
         this->setTitle("AI Генератор Уровня");
         auto winSize = m_mainLayer->getContentSize();
 
@@ -56,12 +57,13 @@ protected:
             "1 grid unit = 30 pixels. Ground Y is 15. Start X at 300. "
             "Do NOT write markdown, explanations, or code blocks. Only the raw string.";
 
+        auto messages = matjson::Value::array();
+        messages.push(matjson::makeObject({{"role", "system"}, {"content", sysPrompt}}));
+        messages.push(matjson::makeObject({{"role", "user"}, {"content", prompt}}));
+
         matjson::Value body = matjson::makeObject({
             {"model", Mod::get()->getSettingValue<std::string>("model")},
-            {"messages", matjson::makeArray({
-                matjson::makeObject({{"role", "system"}, {"content", sysPrompt}}),
-                matjson::makeObject({{"role", "user"}, {"content", prompt}})
-            })},
+            {"messages", messages},
             {"temperature", 0.3}
         });
 
@@ -70,15 +72,19 @@ protected:
         req.header("Content-Type", "application/json");
         req.bodyJSON(body);
 
-        m_listener.bind([this](web::WebTask::Event* e) {
-            if (web::WebResponse* res = e->getValue()) {
-                m_genBtn->setEnabled(true);
-                if (!res->ok()) {
-                    FLAlertLayer::create("Ошибка сети", fmt::format("Код: {}", res->code()), "ОК")->show();
+        auto url = Mod::get()->getSettingValue<std::string>("api-url");
+        Ref<PromptPopup> self = this;
+
+        m_listener.spawn(
+            req.post(url),
+            [self](web::WebResponse res) {
+                self->m_genBtn->setEnabled(true);
+                if (!res.ok()) {
+                    FLAlertLayer::create("Ошибка сети", fmt::format("Код: {}", res.code()), "ОК")->show();
                     return;
                 }
 
-                auto jsonRes = res->json();
+                auto jsonRes = res.json();
                 if (!jsonRes) return;
 
                 auto data = jsonRes.unwrap();
@@ -89,23 +95,21 @@ protected:
                         editor->createObjectsFromString(levelStr.c_str(), true, true);
                         editor->updateEditorMode();
                         Notification::create("Объекты добавлены!", NotificationIcon::Success)->show();
-                        this->onClose(nullptr);
+                        self->onClose(nullptr);
                     }
                 }
             }
-        });
-
-        m_listener.setFilter(req.post(Mod::get()->getSettingValue<std::string>("api-url")));
+        );
     }
 
 public:
     static PromptPopup* create() {
         auto ret = new PromptPopup();
-        if (ret && ret->initAnchored(360.f, 180.f)) {
+        if (ret && ret->init()) {
             ret->autorelease();
             return ret;
         }
-        CC_SAFE_DELETE(ret);
+        delete ret;
         return nullptr;
     }
 };
